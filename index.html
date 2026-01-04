@@ -1943,7 +1943,13 @@
             return geometry;
         }
 
-        // Crée une texture de surface Okoumé (grain du bois) - basée sur référence réelle
+        // Fonction noise simplifié pour le grain de bois
+        function woodNoise(x, y, seed) {
+            const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
+            return n - Math.floor(n);
+        }
+
+        // Crée une texture de surface Okoumé avec grain réaliste
         function createOkoumeTopTexture() {
             const size = 1024;
             const canvas = document.createElement('canvas');
@@ -1951,90 +1957,109 @@
             canvas.height = size;
             const ctx = canvas.getContext('2d');
 
-            // Couleur de base Okoumé: saumon/pêche chaud (comme la vraie photo)
-            ctx.fillStyle = '#C49578';
-            ctx.fillRect(0, 0, size, size);
+            // Couleurs okoumé (rosé/carné foncé)
+            const baseR = 184, baseG = 132, baseB = 106; // #B8846A
 
-            // Grain subtil
-            ctx.globalAlpha = 0.12;
-            ctx.strokeStyle = '#B08060';
-            ctx.lineWidth = 0.5;
-            for (let i = 0; i < 150; i++) {
-                ctx.beginPath();
-                const y = Math.random() * size;
-                ctx.moveTo(0, y);
-                for (let x = 0; x < size; x += 5) {
-                    ctx.lineTo(x, y + Math.sin(x * 0.01) * 1.5 + (Math.random() - 0.5) * 0.5);
+            const imageData = ctx.createImageData(size, size);
+            const data = imageData.data;
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const idx = (y * size + x) * 4;
+
+                    // Grain principal horizontal (sens longueur)
+                    const grainFreq = 0.15;
+                    const grain1 = Math.sin(y * grainFreq + woodNoise(x * 0.01, y * 0.01, 1) * 8) * 0.5 + 0.5;
+                    const grain2 = Math.sin(y * grainFreq * 2.3 + woodNoise(x * 0.02, y * 0.005, 2) * 12) * 0.5 + 0.5;
+
+                    // Veines plus larges occasionnelles
+                    const wideGrain = Math.sin(y * 0.05 + woodNoise(x * 0.005, 0, 3) * 20) * 0.5 + 0.5;
+
+                    // Variation locale (petites irrégularités)
+                    const localVar = woodNoise(x * 0.1, y * 0.1, 4) * 0.3;
+
+                    // Combinaison des grains
+                    const grainValue = grain1 * 0.4 + grain2 * 0.3 + wideGrain * 0.2 + localVar;
+
+                    // Variation de teinte (-25 à +15)
+                    const variation = (grainValue - 0.5) * 40;
+
+                    // Appliquer la couleur avec variation
+                    data[idx] = Math.max(0, Math.min(255, baseR + variation));
+                    data[idx + 1] = Math.max(0, Math.min(255, baseG + variation * 0.8));
+                    data[idx + 2] = Math.max(0, Math.min(255, baseB + variation * 0.6));
+                    data[idx + 3] = 255;
                 }
-                ctx.stroke();
             }
 
-            // Variations de teinte subtiles
-            ctx.globalAlpha = 0.06;
-            for (let i = 0; i < 10; i++) {
-                ctx.fillStyle = Math.random() > 0.5 ? '#A87860' : '#D0A088';
-                ctx.fillRect(
-                    Math.random() * size,
-                    Math.random() * size,
-                    Math.random() * 400 + 150,
-                    Math.random() * 400 + 150
-                );
-            }
-            ctx.globalAlpha = 1;
+            ctx.putImageData(imageData, 0, 0);
 
             const texture = new THREE.CanvasTexture(canvas);
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
-            texture.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 16;
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = true;
             return texture;
         }
 
-        // Crée une texture de tranche contreplaqué (plis visibles) - basée sur référence réelle
+        // Crée une texture de tranche contreplaqué okoumé avec plis visibles
         function createPlywoodEdgeTexture() {
-            const size = 256;
+            const width = 256;
+            const height = 128;
             const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d');
 
-            // Fond couleur Okoumé (même teinte que la surface)
-            ctx.fillStyle = '#C49578';
-            ctx.fillRect(0, 0, size, size);
+            // Fond couleur okoumé rosé
+            ctx.fillStyle = '#C9967A';
+            ctx.fillRect(0, 0, width, height);
 
-            // Plis du contreplaqué (7 couches pour 10mm)
+            // 7 plis pour contreplaqué 10mm (plus réaliste)
             const numPlies = 7;
-            const plyHeight = size / numPlies;
+            const plyHeight = height / numPlies;
+
+            // Couleurs des plis okoumé (alternance clair/foncé)
+            const plyColors = [
+                '#B8866A', // foncé (grain transversal)
+                '#D4A88E', // clair (grain longitudinal)
+                '#B5836A', // foncé
+                '#D6AA90', // clair (âme centrale légèrement différente)
+                '#B5836A', // foncé
+                '#D4A88E', // clair
+                '#B8866A'  // foncé
+            ];
 
             for (let i = 0; i < numPlies; i++) {
                 const y = i * plyHeight;
 
-                // Alternance des plis (comme sur la photo)
-                if (i % 2 === 0) {
-                    ctx.fillStyle = '#B08568'; // Pli plus foncé
-                } else {
-                    ctx.fillStyle = '#CCA088'; // Pli plus clair
-                }
-                ctx.fillRect(0, y + 1.5, size, plyHeight - 3);
+                // Couleur du pli avec micro-variation
+                ctx.fillStyle = plyColors[i];
+                ctx.fillRect(0, y + 1, width, plyHeight - 2);
 
-                // Ligne de colle fine et foncée
-                ctx.fillStyle = '#705040';
-                ctx.fillRect(0, y, size, 1.5);
+                // Micro-grain dans chaque pli
+                for (let px = 0; px < width; px += 2) {
+                    const variation = (Math.random() - 0.5) * 15;
+                    const alpha = 0.15 + Math.random() * 0.1;
+                    ctx.fillStyle = variation > 0 ?
+                        `rgba(255,255,255,${alpha})` :
+                        `rgba(0,0,0,${alpha * 0.7})`;
+                    ctx.fillRect(px, y + 2, 2, plyHeight - 4);
+                }
+
+                // Ligne de colle fine et marquée
+                ctx.fillStyle = '#8B5A3C';
+                ctx.fillRect(0, y, width, 1);
+                // Légère ombre sous la ligne de colle
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.fillRect(0, y + 1, width, 1);
             }
 
-            // Ligne de colle en bas aussi
-            ctx.fillStyle = '#705040';
-            ctx.fillRect(0, size - 1.5, size, 1.5);
+            // Ligne de colle finale en bas
+            ctx.fillStyle = '#8B5A3C';
+            ctx.fillRect(0, height - 1, width, 1);
 
             const texture = new THREE.CanvasTexture(canvas);
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
-            texture.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 16;
-            texture.minFilter = THREE.LinearMipmapLinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-            texture.generateMipmaps = true;
             return texture;
         }
 
@@ -2051,15 +2076,15 @@
             // Matériau pour le dessus/dessous (grain du bois)
             const topMaterial = new THREE.MeshStandardMaterial({
                 map: okoumeTopTexture,
-                roughness: 0.7,
-                metalness: 0.1
+                roughness: 0.6,  // légèrement satiné
+                metalness: 0.0
             });
 
             // Matériau pour les tranches (plis contreplaqué)
             const edgeMaterial = new THREE.MeshStandardMaterial({
                 map: plywoodEdgeTexture,
-                roughness: 0.8,
-                metalness: 0.05
+                roughness: 0.75, // bois coupé plus mat
+                metalness: 0.0
             });
 
             // BoxGeometry faces: [+X, -X, +Y, -Y, +Z, -Z]
@@ -2077,7 +2102,6 @@
         function createPlateau(stage, geo) {
             const scale = CONFIG.SCALE;
             const thickness = CONFIG.WOOD_THICKNESS * scale;
-            const bevelRadius = 0.3 * scale; // 3mm chanfrein
             const y = stage.height * scale;
 
             // Créer les textures si nécessaire
@@ -2088,80 +2112,76 @@
                 plywoodEdgeTexture = createPlywoodEdgeTexture();
             }
 
-            // Matériau pour le dessus/dessous (grain du bois Okoumé) - rendu précis
+            // Matériau surface (dessus/dessous)
             const topMaterial = new THREE.MeshStandardMaterial({
                 map: okoumeTopTexture,
-                roughness: 0.5,        // Surface légèrement polie (contreplaqué poncé)
-                metalness: 0.0,        // Pas de reflet métallique
-                side: THREE.DoubleSide,
-                flatShading: false     // Lissage pour surfaces courbes
+                roughness: 0.5,
+                metalness: 0.0
             });
 
-            // Matériau pour les tranches (plis contreplaqué) - rendu précis
+            // Matériau tranches (plis contreplaqué)
             const edgeMaterial = new THREE.MeshStandardMaterial({
                 map: plywoodEdgeTexture,
-                roughness: 0.6,        // Tranche légèrement plus mate
-                metalness: 0.0,
-                side: THREE.DoubleSide,
-                flatShading: false
+                roughness: 0.6,
+                metalness: 0.0
             });
 
-            // ExtrudeGeometry avec bevel crée 3 groupes:
-            // Groupe 0: Face avant (dessus)
-            // Groupe 1: Face arrière (dessous)
-            // Groupe 2: Parois latérales (tranches + bevel)
-            // Donc: groupe 0 et 1 = topMaterial, groupe 2 = edgeMaterial
-            const materialsForSingleGeo = [topMaterial, topMaterial, edgeMaterial];
-
-            // Pour géométries fusionnées (2 rectangles = 6 groupes)
-            const materialsForMergedGeo = [
-                topMaterial, topMaterial, edgeMaterial,  // geoA
-                topMaterial, topMaterial, edgeMaterial   // geoB
+            // BoxGeometry faces: [+X, -X, +Y, -Y, +Z, -Z]
+            // +Y/-Y = dessus/dessous → topMaterial
+            // Autres = tranches → edgeMaterial
+            const materials = [
+                edgeMaterial,  // +X droite
+                edgeMaterial,  // -X gauche
+                topMaterial,   // +Y dessus
+                topMaterial,   // -Y dessous
+                edgeMaterial,  // +Z avant
+                edgeMaterial   // -Z arrière
             ];
 
             if (stage.type === 'ab' && baseConfig.rectB.enabled) {
-                // Forme en L : fusionner les deux rectangles avec chanfrein
+                // Forme en L : deux meshes séparés dans un groupe
                 const wA = baseConfig.rectA.width * scale;
                 const dA = baseConfig.rectA.depth * scale;
                 const wB = baseConfig.rectB.width * scale;
                 const dB = baseConfig.rectB.depth * scale;
 
-                // Créer les deux géométries avec chanfrein
-                const geoA = createBeveledBoxGeometry(wA, dA, thickness, bevelRadius);
-                const geoB = createBeveledBoxGeometry(wB, dB, thickness, bevelRadius);
+                const group = new THREE.Group();
 
-                // Translater les géométries à leur position
-                geoA.translate(-wA / 2, 0, dA / 2);
-                geoB.translate(wB / 2, 0, dB / 2);
+                const geoA = new THREE.BoxGeometry(wA, thickness, dA);
+                const meshA = new THREE.Mesh(geoA, materials);
+                meshA.position.set(-wA / 2, thickness / 2, dA / 2);
+                meshA.castShadow = true;
+                meshA.receiveShadow = true;
+                group.add(meshA);
 
-                // Fusionner en une seule géométrie (préserve les groupes de matériaux)
-                const mergedGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([geoA, geoB], true);
+                const geoB = new THREE.BoxGeometry(wB, thickness, dB);
+                const meshB = new THREE.Mesh(geoB, materials);
+                meshB.position.set(wB / 2, thickness / 2, dB / 2);
+                meshB.castShadow = true;
+                meshB.receiveShadow = true;
+                group.add(meshB);
 
-                const mesh = new THREE.Mesh(mergedGeo, materialsForMergedGeo);
-                mesh.position.y = y;
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
+                group.position.y = y;
+                return group;
 
-                return mesh;
             } else if (stage.type === 'a' || (stage.type === 'ab' && !baseConfig.rectB.enabled)) {
-                // Rectangle A seul avec chanfrein
                 const wA = baseConfig.rectA.width * scale;
                 const dA = baseConfig.rectA.depth * scale;
-                const geoA = createBeveledBoxGeometry(wA, dA, thickness, bevelRadius);
+                const geoA = new THREE.BoxGeometry(wA, thickness, dA);
 
-                const mesh = new THREE.Mesh(geoA, materialsForSingleGeo);
-                mesh.position.set(-wA / 2, y, dA / 2);
+                const mesh = new THREE.Mesh(geoA, materials);
+                mesh.position.set(-wA / 2, y + thickness / 2, dA / 2);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 return mesh;
+
             } else if (stage.type === 'b' && baseConfig.rectB.enabled) {
-                // Rectangle B seul avec chanfrein
                 const wB = baseConfig.rectB.width * scale;
                 const dB = baseConfig.rectB.depth * scale;
-                const geoB = createBeveledBoxGeometry(wB, dB, thickness, bevelRadius);
+                const geoB = new THREE.BoxGeometry(wB, thickness, dB);
 
-                const mesh = new THREE.Mesh(geoB, materialsForSingleGeo);
-                mesh.position.set(wB / 2, y, dB / 2);
+                const mesh = new THREE.Mesh(geoB, materials);
+                mesh.position.set(wB / 2, y + thickness / 2, dB / 2);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 return mesh;
