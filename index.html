@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configurateur de Meuble Modulaire v3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -500,7 +501,17 @@
             top: 20px;
             right: 20px;
             display: flex;
+            align-items: center;
             gap: 8px;
+        }
+
+        .view-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-left: 8px;
         }
 
         .view-btn {
@@ -895,12 +906,16 @@
                             <span class="summary-value" id="tubes-13">0</span>
                         </div>
                         <div class="summary-row">
-                            <span class="summary-label">Tubes 24 cm</span>
-                            <span class="summary-value" id="tubes-24">0</span>
+                            <span class="summary-label">Tubes 20 cm</span>
+                            <span class="summary-value" id="tubes-20">0</span>
                         </div>
                         <div class="summary-row">
-                            <span class="summary-label">Tubes 35 cm</span>
-                            <span class="summary-value" id="tubes-35">0</span>
+                            <span class="summary-label">Tubes 27 cm</span>
+                            <span class="summary-value" id="tubes-27">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Tubes 34 cm</span>
+                            <span class="summary-value" id="tubes-34">0</span>
                         </div>
                         <div id="tubes-custom" style="display: none;">
                             <!-- Tubes compensatoires ajoutés dynamiquement -->
@@ -952,28 +967,10 @@
             </div>
 
             <div class="view-controls">
-                <button class="view-btn" onclick="rotateView(-1)" title="Rotation gauche">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
-                <button class="view-btn" onclick="rotateView(1)" title="Rotation droite">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </button>
                 <button class="view-btn" onclick="resetView()" title="Vue par défaut">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                         <path d="M3 3v5h5"></path>
-                    </svg>
-                </button>
-                <button class="view-btn" id="zoom-btn" onclick="toggleZoom()" title="Zoom">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                        <line x1="11" y1="8" x2="11" y2="14"></line>
-                        <line x1="8" y1="11" x2="14" y2="11"></line>
                     </svg>
                 </button>
                 <button class="view-btn" id="topview-btn" onclick="toggleTopView()" title="Vue de dessus">
@@ -988,10 +985,7 @@
                         <path d="M12 12v9"></path>
                     </svg>
                 </button>
-                <div class="camera-height-control">
-                    <input type="range" id="camera-height" min="1" max="15" value="7" oninput="updateCameraHeight(this.value)">
-                    <span class="slider-label">Hauteur</span>
-                </div>
+                <div class="view-hint">Souris: rotation, molette: zoom, clic droit: pan</div>
             </div>
 
             <div class="info-panel">
@@ -1026,7 +1020,7 @@
             TUBE_DIAMETER: 1,       // 10mm = 1cm
             TUBE_MARGIN: 0.5,       // 5mm du bord
             MAX_SPAN: 50,           // Maximum 50cm entre deux tubes
-            TUBE_LENGTHS: [13, 24, 35], // Longueurs corrigées
+            TUBE_LENGTHS: [13, 20, 27, 34], // 13+1+13=27, 13+1+20=34
             SCALE: 0.02
         };
 
@@ -1043,11 +1037,8 @@
         // Three.js
         let scene, camera, renderer, furnitureGroup;
         let orthoCamera, perspCamera;
-        let viewAngle = Math.PI / 4;
-        let zoomLevel = 1;
-        let isTopView = false;
+        let controls; // OrbitControls
         let usePerspective = false;
-        let cameraHeight = 0.7;
         let steelMaterial;
 
         // Room
@@ -1098,6 +1089,16 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
+            // OrbitControls pour navigation libre
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+            controls.minDistance = 0.5;
+            controls.maxDistance = 20;
+            controls.maxPolarAngle = Math.PI / 2; // Pas en dessous du sol
+            controls.target.set(0, 0.5, 0.5); // Point de focus sur le meuble
+
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
 
@@ -1137,28 +1138,16 @@
         }
 
         function setIsometricView() {
-            // Distance de base, ajustée par le zoom en mode perspective
-            const baseDistance = 10;
-            const distance = usePerspective ? baseDistance / zoomLevel : baseDistance;
-            const height = distance * cameraHeight;
-
-            if (isTopView) {
-                camera.position.set(0, 15 / zoomLevel, 0.001);
-                camera.lookAt(0, 0, 0);
-            } else {
-                camera.position.set(
-                    Math.cos(viewAngle) * distance,
-                    Math.max(0.5, height), // Hauteur minimum 0.5 pour éviter de passer sous le sol
-                    Math.sin(viewAngle) * distance
-                );
-                camera.lookAt(0, 0.5, 0);
-            }
-
-            // Appliquer zoom en mode orthographique
-            if (!usePerspective && camera.isOrthographicCamera) {
-                camera.zoom = zoomLevel;
-            }
+            // Position initiale de la caméra (vue isométrique)
+            camera.position.set(5, 4, 5);
+            camera.lookAt(0, 0.5, 0.5);
             camera.updateProjectionMatrix();
+
+            // Mettre à jour la cible des controls
+            if (controls) {
+                controls.target.set(0, 0.5, 0.5);
+                controls.update();
+            }
         }
 
         // ==========================================
@@ -1213,9 +1202,25 @@
 
         function togglePerspective() {
             usePerspective = !usePerspective;
+
+            // Sauvegarder la position actuelle
+            const currentPos = camera.position.clone();
+            const currentTarget = controls.target.clone();
+
+            // Changer de caméra
             camera = usePerspective ? perspCamera : orthoCamera;
+
+            // Restaurer la position
+            camera.position.copy(currentPos);
+            camera.lookAt(currentTarget);
+            camera.updateProjectionMatrix();
+
+            // Mettre à jour les controls avec la nouvelle caméra
+            controls.object = camera;
+            controls.target.copy(currentTarget);
+            controls.update();
+
             document.getElementById('perspective-btn').classList.toggle('active', usePerspective);
-            setIsometricView();
         }
 
         function updateFloorColor(color) {
@@ -1338,6 +1343,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            if (controls) controls.update();
             renderer.render(scene, camera);
         }
 
@@ -1662,8 +1668,9 @@
                                     <label>Tubes vers étage 2</label>
                                     <select onchange="updateStage(${stage.id}, 'tubeLength', this.value)">
                                         <option value="13" ${stage.tubeLength === 13 ? 'selected' : ''}>13 cm</option>
-                                        <option value="24" ${stage.tubeLength === 24 ? 'selected' : ''}>24 cm</option>
-                                        <option value="35" ${stage.tubeLength === 35 ? 'selected' : ''}>35 cm</option>
+                                        <option value="20" ${stage.tubeLength === 20 ? 'selected' : ''}>20 cm</option>
+                                        <option value="27" ${stage.tubeLength === 27 ? 'selected' : ''}>27 cm</option>
+                                        <option value="34" ${stage.tubeLength === 34 ? 'selected' : ''}>34 cm</option>
                                     </select>
                                 </div>
                             </div>
@@ -1731,8 +1738,9 @@
                                     <label>Tubes vers étage ${index + 2}</label>
                                     <select onchange="updateStage(${stage.id}, 'tubeLength', this.value)">
                                         <option value="13" ${stage.tubeLength === 13 ? 'selected' : ''}>13 cm</option>
-                                        <option value="24" ${stage.tubeLength === 24 ? 'selected' : ''}>24 cm</option>
-                                        <option value="35" ${stage.tubeLength === 35 ? 'selected' : ''}>35 cm</option>
+                                        <option value="20" ${stage.tubeLength === 20 ? 'selected' : ''}>20 cm</option>
+                                        <option value="27" ${stage.tubeLength === 27 ? 'selected' : ''}>27 cm</option>
+                                        <option value="34" ${stage.tubeLength === 34 ? 'selected' : ''}>34 cm</option>
                                     </select>
                                 </div>
                             </div>
@@ -1858,22 +1866,121 @@
             return tubes;
         }
 
+        // Crée une texture de surface Okoumé (grain du bois)
+        function createOkoumeTopTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            // Couleur de base Okoumé (brun-rosé clair)
+            ctx.fillStyle = '#C4956A';
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Grain du bois (lignes légères)
+            ctx.strokeStyle = '#B8876A';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 40; i++) {
+                ctx.beginPath();
+                const y = Math.random() * 256;
+                ctx.moveTo(0, y);
+                // Ligne légèrement ondulée
+                for (let x = 0; x < 256; x += 10) {
+                    ctx.lineTo(x, y + Math.sin(x * 0.05) * 3 + (Math.random() - 0.5) * 2);
+                }
+                ctx.stroke();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        // Crée une texture de tranche contreplaqué (plis visibles)
+        function createPlywoodEdgeTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            // Fond couleur Okoumé
+            ctx.fillStyle = '#C4956A';
+            ctx.fillRect(0, 0, 64, 64);
+
+            // Plis du contreplaqué (5 couches pour 10mm)
+            const numPlies = 5;
+            const plyHeight = 64 / numPlies;
+
+            for (let i = 0; i < numPlies; i++) {
+                const y = i * plyHeight;
+
+                // Alternance de teintes pour chaque pli
+                if (i % 2 === 0) {
+                    ctx.fillStyle = '#B8876A'; // Pli foncé
+                } else {
+                    ctx.fillStyle = '#D4A87A'; // Pli clair
+                }
+                ctx.fillRect(0, y + 1, 64, plyHeight - 2);
+
+                // Ligne de colle entre les plis
+                ctx.fillStyle = '#A07050';
+                ctx.fillRect(0, y, 64, 1);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            return texture;
+        }
+
+        // Textures globales (créées une seule fois)
+        let okoumeTopTexture = null;
+        let plywoodEdgeTexture = null;
+
+        function getPlateauMaterials() {
+            if (!okoumeTopTexture) {
+                okoumeTopTexture = createOkoumeTopTexture();
+                plywoodEdgeTexture = createPlywoodEdgeTexture();
+            }
+
+            // Matériau pour le dessus/dessous (grain du bois)
+            const topMaterial = new THREE.MeshStandardMaterial({
+                map: okoumeTopTexture,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+
+            // Matériau pour les tranches (plis contreplaqué)
+            const edgeMaterial = new THREE.MeshStandardMaterial({
+                map: plywoodEdgeTexture,
+                roughness: 0.8,
+                metalness: 0.05
+            });
+
+            // BoxGeometry faces: [+X, -X, +Y, -Y, +Z, -Z]
+            // +Y/-Y = dessus/dessous, autres = tranches
+            return [
+                edgeMaterial,  // droite (+X)
+                edgeMaterial,  // gauche (-X)
+                topMaterial,   // dessus (+Y)
+                topMaterial,   // dessous (-Y)
+                edgeMaterial,  // avant (+Z)
+                edgeMaterial   // arrière (-Z)
+            ];
+        }
+
         function createPlateau(stage, geo) {
             const scale = CONFIG.SCALE;
             const thickness = CONFIG.WOOD_THICKNESS * scale;
             const y = stage.height * scale + thickness / 2;
 
-            const woodMaterial = new THREE.MeshStandardMaterial({
-                color: 0xD4A574,
-                roughness: 0.7,
-                metalness: 0.1
-            });
+            const materials = getPlateauMaterials();
 
             if (stage.type === 'ab' && baseConfig.rectB.enabled) {
-                // Forme en L : créer un groupe avec les deux rectangles
-                // (visuellement une seule pièce grâce au même matériau)
+                // Forme en L : deux rectangles (même pièce de bois visuellement)
                 const group = new THREE.Group();
-                
+
                 const wA = baseConfig.rectA.width;
                 const dA = baseConfig.rectA.depth;
                 const wB = baseConfig.rectB.width;
@@ -1881,31 +1988,21 @@
 
                 // Rectangle A : à gauche (X négatif), aligné au fond (Z=0)
                 const geoA = new THREE.BoxGeometry(wA * scale, thickness, dA * scale);
-                const meshA = new THREE.Mesh(geoA, woodMaterial);
-                meshA.position.set(
-                    -wA / 2 * scale,      // Centré sur sa largeur, côté gauche
-                    0,
-                    dA / 2 * scale        // Fond à Z=0, s'étend vers Z+
-                );
+                const meshA = new THREE.Mesh(geoA, materials);
+                meshA.position.set(-wA / 2 * scale, 0, dA / 2 * scale);
                 meshA.castShadow = true;
                 meshA.receiveShadow = true;
                 group.add(meshA);
 
                 // Rectangle B : à droite (X positif), aligné au fond (Z=0)
                 const geoB = new THREE.BoxGeometry(wB * scale, thickness, dB * scale);
-                const meshB = new THREE.Mesh(geoB, woodMaterial);
-                meshB.position.set(
-                    wB / 2 * scale,       // Centré sur sa largeur, côté droit
-                    0,
-                    dB / 2 * scale        // Fond à Z=0, s'étend vers Z+
-                );
+                const meshB = new THREE.Mesh(geoB, materials);
+                meshB.position.set(wB / 2 * scale, 0, dB / 2 * scale);
                 meshB.castShadow = true;
                 meshB.receiveShadow = true;
                 group.add(meshB);
 
-                // Positionner le groupe à la bonne hauteur
                 group.position.y = y;
-                
                 return group;
             } else if (stage.type === 'a' || (stage.type === 'ab' && !baseConfig.rectB.enabled)) {
                 // Rectangle A seul
@@ -1914,7 +2011,7 @@
                     thickness,
                     baseConfig.rectA.depth * scale
                 );
-                const mesh = new THREE.Mesh(geoA, woodMaterial);
+                const mesh = new THREE.Mesh(geoA, materials);
                 mesh.position.set(
                     -baseConfig.rectA.width / 2 * scale,
                     y,
@@ -1930,7 +2027,7 @@
                     thickness,
                     baseConfig.rectB.depth * scale
                 );
-                const mesh = new THREE.Mesh(geoB, woodMaterial);
+                const mesh = new THREE.Mesh(geoB, materials);
                 mesh.position.set(
                     baseConfig.rectB.width / 2 * scale,
                     y,
@@ -2094,11 +2191,12 @@
 
             // Afficher les tubes standard
             document.getElementById('tubes-13').textContent = tubesCounts[13] || 0;
-            document.getElementById('tubes-24').textContent = tubesCounts[24] || 0;
-            document.getElementById('tubes-35').textContent = tubesCounts[35] || 0;
+            document.getElementById('tubes-20').textContent = tubesCounts[20] || 0;
+            document.getElementById('tubes-27').textContent = tubesCounts[27] || 0;
+            document.getElementById('tubes-34').textContent = tubesCounts[34] || 0;
 
             // Ajouter les tubes compensatoires (hauteurs non standard)
-            const customHeights = heights.filter(h => h !== 13 && h !== 24 && h !== 35);
+            const customHeights = heights.filter(h => !CONFIG.TUBE_LENGTHS.includes(h));
             const customContainer = document.getElementById('tubes-custom');
 
             if (customContainer) {
@@ -2122,43 +2220,30 @@
         // ==========================================
         // CONTRÔLES DE VUE
         // ==========================================
-        
-        function rotateView(direction) {
-            if (!isTopView) {
-                viewAngle += direction * Math.PI / 6;
-                setIsometricView();
-            }
-        }
 
         function resetView() {
-            viewAngle = Math.PI / 4;
-            zoomLevel = 1;
-            isTopView = false;
             usePerspective = false;
-            cameraHeight = 0.7;
-
-            // Réinitialiser la caméra active
             camera = orthoCamera;
 
+            // Position isométrique par défaut
+            camera.position.set(5, 4, 5);
+            camera.lookAt(0, 0.5, 0.5);
+            camera.updateProjectionMatrix();
+
+            // Réinitialiser les controls
+            controls.object = camera;
+            controls.target.set(0, 0.5, 0.5);
+            controls.update();
+
             // Réinitialiser les boutons UI
-            document.getElementById('topview-btn').classList.remove('active');
-            document.getElementById('zoom-btn').classList.remove('active');
             document.getElementById('perspective-btn').classList.remove('active');
-            document.getElementById('camera-height').value = 7;
-
-            setIsometricView();
-        }
-
-        function toggleZoom() {
-            zoomLevel = zoomLevel === 1 ? 2.5 : 1;
-            document.getElementById('zoom-btn').classList.toggle('active', zoomLevel > 1);
-            setIsometricView();
         }
 
         function toggleTopView() {
-            isTopView = !isTopView;
-            document.getElementById('topview-btn').classList.toggle('active', isTopView);
-            setIsometricView();
+            // Vue de dessus
+            camera.position.set(0, 10, 0.001);
+            controls.target.set(0, 0, 0.5);
+            controls.update();
         }
 
         // ==========================================
