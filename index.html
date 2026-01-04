@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurateur de Meuble Modulaire v3</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --wood-light: #D4A574;
+            --wood-medium: #B8956E;
+            --wood-dark: #8B6914;
+            --steel-light: #6B7280;
+            --steel-medium: #4B5563;
+            --steel-dark: #374151;
+            --bg-primary: #1C1917;
+            --bg-secondary: #292524;
+            --bg-tertiary: #3F3A36;
+            --text-primary: #FAFAF9;
+            --text-secondary: #A8A29E;
+            --accent: #F59E0B;
+            --accent-hover: #D97706;
+            --danger: #EF4444;
+            --success: #10B981;
+            --info: #3B82F6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 440px 1fr;
+            height: 100vh;
+        }
+
+        /* Panel de configuration */
+        .config-panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--bg-tertiary);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+        }
+
+        .panel-header h1 {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .panel-header p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 12px;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        /* Schéma explicatif */
+        .schema-box {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            line-height: 1.4;
+            color: var(--text-secondary);
+        }
+
+        .schema-box pre {
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .schema-box .label-a { color: var(--accent); }
+        .schema-box .label-b { color: var(--info); }
+        .schema-box .label-ab { color: var(--success); }
+
+        /* Couleur des tubes */
+        .color-picker-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .color-picker-row label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .color-picker-row input[type="color"] {
+            width: 40px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .color-presets {
+            display: flex;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .color-preset {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-preset:hover {
+            transform: scale(1.1);
+        }
+
+        .color-preset.active {
+            border-color: white;
+        }
+
+        /* Étages */
+        .stage-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stage-card {
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 16px;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .stage-card.base-stage {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, var(--bg-tertiary) 100%);
+        }
+
+        .stage-card:hover {
+            border-color: var(--steel-light);
+        }
+
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stage-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stage-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .badge-height {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .badge-type {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .badge-type.type-ab { background: var(--success); color: white; }
+        .badge-type.type-a { background: var(--accent); color: var(--bg-primary); }
+        .badge-type.type-b { background: var(--info); color: white; }
+
+        .stage-delete {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .stage-delete:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .stage-config {
+            display: grid;
+            gap: 12px;
+        }
+
+        /* Sections rectangles */
+        .rect-section {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 12px;
+            border-left: 3px solid var(--accent);
+        }
+
+        .rect-section.rect-b {
+            border-left-color: var(--info);
+        }
+
+        .rect-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .rect-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rect-label .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .rect-section.rect-b .rect-label .dot {
+            background: var(--info);
+        }
+
+        .config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input, .input-group select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--bg-primary);
+            border-radius: 6px;
+            padding: 8px 10px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-family: 'Space Mono', monospace;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Toggle rectangle B */
+        .rect-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px dashed var(--steel-medium);
+            transition: all 0.2s;
+        }
+
+        .rect-toggle:hover {
+            border-color: var(--info);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .rect-toggle.active {
+            border-style: solid;
+            border-color: var(--info);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .rect-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--info);
+        }
+
+        .rect-toggle span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Sélection du type d'étage */
+        .stage-type-selector {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stage-type-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: 2px solid var(--bg-secondary);
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .stage-type-btn:hover {
+            border-color: var(--steel-light);
+        }
+
+        .stage-type-btn.active {
+            border-color: var(--accent);
+            background: rgba(245, 158, 11, 0.15);
+        }
+
+        .stage-type-btn.type-ab.active { border-color: var(--success); background: rgba(16, 185, 129, 0.15); }
+        .stage-type-btn.type-a.active { border-color: var(--accent); background: rgba(245, 158, 11, 0.15); }
+        .stage-type-btn.type-b.active { border-color: var(--info); background: rgba(59, 130, 246, 0.15); }
+
+        .stage-type-btn .type-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            margin-bottom: 2px;
+        }
+
+        .stage-type-btn.type-ab .type-label { color: var(--success); }
+        .stage-type-btn.type-a .type-label { color: var(--accent); }
+        .stage-type-btn.type-b .type-label { color: var(--info); }
+
+        .stage-type-btn .type-desc {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .stage-type-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Tube config */
+        .tube-config {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--bg-secondary);
+        }
+
+        /* Dimensions preview */
+        .dims-preview {
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dims-preview .shape-icon {
+            font-size: 1rem;
+        }
+
+        /* Boutons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--steel-medium);
+        }
+
+        .btn-secondary:hover {
+            background: var(--steel-dark);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Zone 3D */
+        .viewer-container {
+            position: relative;
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #canvas-container canvas {
+            display: block;
+        }
+
+        /* Contrôles de vue */
+        .view-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            color: var(--text-primary);
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .view-btn:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+        }
+
+        .view-btn.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .view-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Orientation indicator */
+        .orientation-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+        }
+
+        .orientation-indicator .label {
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .orientation-indicator .directions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .orientation-indicator .dir {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .orientation-indicator .arrow {
+            font-size: 1rem;
+        }
+
+        /* Info panel */
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 16px 20px;
+            min-width: 320px;
+        }
+
+        .info-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        /* Grille de fond (désactivée) */
+        .grid-overlay {
+            display: none;
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+
+        /* Slider controls */
+        .slider-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+
+        .slider-control label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+        }
+
+        .slider-control input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            background: var(--bg-secondary);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .slider-control input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            min-width: 55px;
+            text-align: right;
+            color: var(--text-primary);
+        }
+
+        /* Camera height control (vertical slider) */
+        .camera-height-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px 8px;
+            margin-left: 8px;
+        }
+
+        .camera-height-control input[type="range"] {
+            writing-mode: vertical-lr;
+            direction: rtl;
+            width: 6px;
+            height: 100px;
+            -webkit-appearance: none;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .camera-height-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .camera-height-control .slider-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--steel-medium); }
+
+        /* Summary */
+        .summary-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--bg-secondary);
+        }
+
+        .summary-row:last-child { border-bottom: none; }
+
+        .summary-row.total {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 2px solid var(--bg-secondary);
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .summary-value {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        /* Légende étages */
+        .stage-legend {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        .legend-dot.ab { background: var(--success); }
+        .legend-dot.a { background: var(--accent); }
+        .legend-dot.b { background: var(--info); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Panel de configuration -->
+        <div class="config-panel">
+            <div class="panel-header">
+                <h1>⬡ Configurateur Meuble</h1>
+                <p>Plateaux bois & tubes acier modulaires</p>
+            </div>
+            
+            <div class="panel-content">
+                <!-- Schéma explicatif -->
+                <div class="schema-box">
+                    <div style="margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">Vue de dessus :</div>
+                    <pre>      <span class="label-a">← Larg. A →</span><span class="label-b">← Largeur B →</span>
+    ┌─────────┬───────────────┐  ↑
+    │         │               │  │ <span class="label-a">Prof. A</span>
+    │  <span class="label-a">Rect A</span> │    <span class="label-b">Rect B</span>     │  │
+    │         ├───────────────┘  ↓
+    │         │ <span class="label-b">↑ Prof. B</span>
+    └─────────┘
+  <span class="label-ab">▲ FOND (mur) - A+B = 1 pièce en L</span></pre>
+                </div>
+
+                <!-- Couleur des tubes -->
+                <div class="section">
+                    <div class="section-title">Couleur des tubes</div>
+                    <div class="color-picker-row">
+                        <label>Couleur :</label>
+                        <input type="color" id="tube-color" value="#6B7280" onchange="updateTubeColor(this.value)">
+                        <div class="color-presets">
+                            <div class="color-preset active" style="background: #6B7280;" onclick="setTubeColor('#6B7280')" title="Acier brut"></div>
+                            <div class="color-preset" style="background: #1F2937;" onclick="setTubeColor('#1F2937')" title="Noir mat"></div>
+                            <div class="color-preset" style="background: #F5F5F4;" onclick="setTubeColor('#F5F5F4')" title="Blanc"></div>
+                            <div class="color-preset" style="background: #B45309;" onclick="setTubeColor('#B45309')" title="Bronze"></div>
+                            <div class="color-preset" style="background: #065F46;" onclick="setTubeColor('#065F46')" title="Vert forêt"></div>
+                            <div class="color-preset" style="background: #7C3AED;" onclick="setTubeColor('#7C3AED')" title="Violet"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Paramètres de la pièce -->
+                <div class="section">
+                    <div class="section-title">Paramètres de la pièce</div>
+
+                    <!-- Couleur du sol -->
+                    <div class="color-picker-row">
+                        <label>Sol :</label>
+                        <input type="color" id="floor-color" value="#4A4A4A" oninput="updateFloorColor(this.value)">
+                        <div class="color-presets" id="floor-presets">
+                            <div class="color-preset" style="background-color: #8B7355;" onclick="setFloorColor('#8B7355')" title="Parquet"></div>
+                            <div class="color-preset" style="background-color: #808080;" onclick="setFloorColor('#808080')" title="Béton"></div>
+                            <div class="color-preset" style="background-color: #D4C4B0;" onclick="setFloorColor('#D4C4B0')" title="Carrelage clair"></div>
+                            <div class="color-preset active" style="background-color: #4A4A4A;" onclick="setFloorColor('#4A4A4A')" title="Gris foncé"></div>
+                        </div>
+                    </div>
+
+                    <!-- Couleur des murs -->
+                    <div class="color-picker-row">
+                        <label>Murs :</label>
+                        <input type="color" id="wall-color" value="#E8E8E8" oninput="updateWallColor(this.value)">
+                        <div class="color-presets" id="wall-presets">
+                            <div class="color-preset active" style="background-color: #E8E8E8;" onclick="setWallColor('#E8E8E8')" title="Blanc cassé"></div>
+                            <div class="color-preset" style="background-color: #F5F5DC;" onclick="setWallColor('#F5F5DC')" title="Crème"></div>
+                            <div class="color-preset" style="background-color: #B0B0B0;" onclick="setWallColor('#B0B0B0')" title="Gris"></div>
+                            <div class="color-preset" style="background-color: #2C2C2C;" onclick="setWallColor('#2C2C2C')" title="Anthracite"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Position du meuble -->
+                <div class="section">
+                    <div class="section-title">Position du meuble</div>
+                    <div class="slider-control">
+                        <label>Gauche/Droite :</label>
+                        <input type="range" id="furniture-x" min="-200" max="200" value="0" oninput="updateFurniturePosition()">
+                        <span class="slider-value" id="furniture-x-value">0 cm</span>
+                    </div>
+                    <div class="slider-control" style="margin-top: 8px;">
+                        <label>Profondeur :</label>
+                        <input type="range" id="furniture-z" min="-100" max="100" value="0" oninput="updateFurniturePosition()">
+                        <span class="slider-value" id="furniture-z-value">0 cm</span>
+                    </div>
+                </div>
+
+                <!-- Légende -->
+                <div class="stage-legend">
+                    <div class="legend-item"><div class="legend-dot ab"></div> A+B (L)</div>
+                    <div class="legend-item"><div class="legend-dot a"></div> A seul</div>
+                    <div class="legend-item"><div class="legend-dot b"></div> B seul</div>
+                </div>
+
+                <!-- Section Étages -->
+                <div class="section">
+                    <div class="section-title">Étages du meuble</div>
+                    <div class="stage-list" id="stage-list">
+                        <!-- Les étages seront ajoutés dynamiquement -->
+                    </div>
+                    <button class="btn btn-primary btn-full" style="margin-top: 16px;" onclick="addStage()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Ajouter un étage
+                    </button>
+                </div>
+
+                <!-- Résumé des composants -->
+                <div class="section">
+                    <div class="section-title">Composants nécessaires</div>
+                    <div class="summary-card">
+                        <div class="summary-row">
+                            <span class="summary-label">Tubes 13 cm</span>
+                            <span class="summary-value" id="tubes-13">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Tubes 24 cm</span>
+                            <span class="summary-value" id="tubes-24">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Tubes 35 cm</span>
+                            <span class="summary-value" id="tubes-35">0</span>
+                        </div>
+                        <div id="tubes-custom" style="display: none;">
+                            <!-- Tubes compensatoires ajoutés dynamiquement -->
+                        </div>
+                        <div class="summary-row total">
+                            <span class="summary-label">Total tubes</span>
+                            <span class="summary-value" id="tubes-total">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Plateaux bois</span>
+                            <span class="summary-value" id="plateaux-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="section">
+                    <div class="section-title">Actions</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button class="btn btn-secondary" onclick="resetConfig()">
+                            Réinitialiser
+                        </button>
+                        <button class="btn btn-primary" onclick="exportConfig()">
+                            Exporter JSON
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadConfigFile()">
+                            Charger JSON
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportImage()">
+                            Export Image
+                        </button>
+                    </div>
+                    <input type="file" id="load-json-input" accept=".json" style="display: none;" onchange="handleFileLoad(event)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone de visualisation 3D -->
+        <div class="viewer-container">
+            <div class="grid-overlay"></div>
+            <div id="canvas-container"></div>
+            
+            <div class="orientation-indicator">
+                <div class="label">ORIENTATION</div>
+                <div class="directions">
+                    <div class="dir"><span class="arrow">↑</span> Fond (mur)</div>
+                    <div class="dir"><span class="arrow">→</span> Largeur</div>
+                </div>
+            </div>
+
+            <div class="view-controls">
+                <button class="view-btn" onclick="rotateView(-1)" title="Rotation gauche">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <button class="view-btn" onclick="rotateView(1)" title="Rotation droite">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+                <button class="view-btn" onclick="resetView()" title="Vue par défaut">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                    </svg>
+                </button>
+                <button class="view-btn" id="zoom-btn" onclick="toggleZoom()" title="Zoom">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                        <line x1="11" y1="8" x2="11" y2="14"></line>
+                        <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                </button>
+                <button class="view-btn" id="topview-btn" onclick="toggleTopView()" title="Vue de dessus">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                </button>
+                <button class="view-btn" id="perspective-btn" onclick="togglePerspective()" title="Perspective">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 3L2 12l10 9 10-9z"></path>
+                        <path d="M12 12v9"></path>
+                    </svg>
+                </button>
+                <div class="camera-height-control">
+                    <input type="range" id="camera-height" min="1" max="15" value="7" oninput="updateCameraHeight(this.value)">
+                    <span class="slider-label">Hauteur</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-title">Dimensions globales</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Largeur totale</span>
+                        <span class="info-value" id="info-width">0 cm</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Profondeur max</span>
+                        <span class="info-value" id="info-depth">0 cm</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Hauteur</span>
+                        <span class="info-value" id="info-height">0 cm</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="watermark">Configurateur Meuble v3.0</div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURATION ET CONSTANTES
+        // ==========================================
+        
+        const CONFIG = {
+            WOOD_THICKNESS: 1,      // 10mm = 1cm
+            TUBE_DIAMETER: 1,       // 10mm = 1cm
+            TUBE_MARGIN: 0.5,       // 5mm du bord
+            MAX_SPAN: 50,           // Maximum 50cm entre deux tubes
+            TUBE_LENGTHS: [13, 24, 35], // Longueurs corrigées
+            SCALE: 0.02
+        };
+
+        // État global
+        let baseConfig = {
+            rectA: { width: 40, depth: 50 },
+            rectB: { enabled: false, width: 60, depth: 30 }
+        };
+
+        let stages = [];
+        let stageIdCounter = 0;
+        let tubeColor = '#6B7280';
+        
+        // Three.js
+        let scene, camera, renderer, furnitureGroup;
+        let orthoCamera, perspCamera;
+        let viewAngle = Math.PI / 4;
+        let zoomLevel = 1;
+        let isTopView = false;
+        let usePerspective = false;
+        let cameraHeight = 0.7;
+        let steelMaterial;
+
+        // Room
+        let roomFloor, roomWallBack, roomWallLeft, roomWallRight;
+        let floorColor = '#4A4A4A';
+        let wallColor = '#E8E8E8';
+        const ROOM_WIDTH = 10;
+        const ROOM_DEPTH = 8;
+        const ROOM_HEIGHT = 4;
+
+        // Furniture position
+        let furnitureOffsetX = 0;
+        let furnitureOffsetZ = 0;
+
+        // ==========================================
+        // INITIALISATION THREE.JS
+        // ==========================================
+        
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1C1917);
+
+            const aspect = width / height;
+            const viewSize = 4;
+
+            // Créer les deux caméras
+            orthoCamera = new THREE.OrthographicCamera(
+                -viewSize * aspect, viewSize * aspect,
+                viewSize, -viewSize,
+                0.1, 1000
+            );
+
+            perspCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+
+            // Caméra active par défaut (orthographique)
+            camera = orthoCamera;
+
+            setIsometricView();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -10;
+            directionalLight.shadow.camera.right = 10;
+            directionalLight.shadow.camera.top = 10;
+            directionalLight.shadow.camera.bottom = -10;
+            scene.add(directionalLight);
+
+            const fillLight = new THREE.DirectionalLight(0xF59E0B, 0.2);
+            fillLight.position.set(-5, 3, -5);
+            scene.add(fillLight);
+
+            // Matériau acier (sera mis à jour avec la couleur)
+            steelMaterial = new THREE.MeshStandardMaterial({
+                color: tubeColor,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+
+            furnitureGroup = new THREE.Group();
+            scene.add(furnitureGroup);
+
+            // Créer la pièce (sol + murs)
+            createRoom();
+
+            addGroundElements();
+            animate();
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setIsometricView() {
+            // Distance de base, ajustée par le zoom en mode perspective
+            const baseDistance = 10;
+            const distance = usePerspective ? baseDistance / zoomLevel : baseDistance;
+            const height = distance * cameraHeight;
+
+            if (isTopView) {
+                camera.position.set(0, 15 / zoomLevel, 0.001);
+                camera.lookAt(0, 0, 0);
+            } else {
+                camera.position.set(
+                    Math.cos(viewAngle) * distance,
+                    Math.max(0.5, height), // Hauteur minimum 0.5 pour éviter de passer sous le sol
+                    Math.sin(viewAngle) * distance
+                );
+                camera.lookAt(0, 0.5, 0);
+            }
+
+            // Appliquer zoom en mode orthographique
+            if (!usePerspective && camera.isOrthographicCamera) {
+                camera.zoom = zoomLevel;
+            }
+            camera.updateProjectionMatrix();
+        }
+
+        // ==========================================
+        // GESTION DE LA PIÈCE (SOL + MURS)
+        // ==========================================
+
+        function createRoom() {
+            // Supprimer anciens éléments
+            [roomFloor, roomWallBack, roomWallLeft, roomWallRight].forEach(obj => {
+                if (obj) scene.remove(obj);
+            });
+
+            const wallMat = new THREE.MeshStandardMaterial({
+                color: wallColor,
+                side: THREE.DoubleSide
+            });
+            const floorMat = new THREE.MeshStandardMaterial({
+                color: floorColor,
+                side: THREE.DoubleSide
+            });
+
+            // Sol
+            const floorGeo = new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_DEPTH);
+            roomFloor = new THREE.Mesh(floorGeo, floorMat);
+            roomFloor.rotation.x = -Math.PI / 2;
+            roomFloor.position.set(0, -0.02, ROOM_DEPTH / 2 - 2);
+            roomFloor.receiveShadow = true;
+            scene.add(roomFloor);
+
+            // Mur du fond (arrière)
+            const backGeo = new THREE.PlaneGeometry(ROOM_WIDTH, ROOM_HEIGHT);
+            roomWallBack = new THREE.Mesh(backGeo, wallMat);
+            roomWallBack.position.set(0, ROOM_HEIGHT / 2, -2);
+            roomWallBack.receiveShadow = true;
+            scene.add(roomWallBack);
+
+            // Mur gauche (forme un coin avec le mur du fond)
+            const sideGeo = new THREE.PlaneGeometry(ROOM_DEPTH, ROOM_HEIGHT);
+            roomWallLeft = new THREE.Mesh(sideGeo, wallMat.clone());
+            roomWallLeft.rotation.y = Math.PI / 2;
+            roomWallLeft.position.set(-ROOM_WIDTH / 2, ROOM_HEIGHT / 2, ROOM_DEPTH / 2 - 2);
+            roomWallLeft.receiveShadow = true;
+            scene.add(roomWallLeft);
+
+            // Pas de mur droit (ouvert)
+            roomWallRight = null;
+        }
+
+        // ==========================================
+        // GESTION PERSPECTIVE / COULEURS PIÈCE
+        // ==========================================
+
+        function togglePerspective() {
+            usePerspective = !usePerspective;
+            camera = usePerspective ? perspCamera : orthoCamera;
+            document.getElementById('perspective-btn').classList.toggle('active', usePerspective);
+            setIsometricView();
+        }
+
+        function updateFloorColor(color) {
+            floorColor = color;
+            document.querySelectorAll('#floor-presets .color-preset').forEach(el => {
+                const presetColor = rgbToHex(el.style.backgroundColor);
+                el.classList.toggle('active', presetColor === color.toUpperCase());
+            });
+            createRoom();
+        }
+
+        function setFloorColor(color) {
+            document.getElementById('floor-color').value = color;
+            floorColor = color;
+            document.querySelectorAll('#floor-presets .color-preset').forEach(el => {
+                const presetColor = rgbToHex(el.style.backgroundColor);
+                el.classList.toggle('active', presetColor === color.toUpperCase());
+            });
+            createRoom();
+        }
+
+        function updateWallColor(color) {
+            wallColor = color;
+            document.querySelectorAll('#wall-presets .color-preset').forEach(el => {
+                const presetColor = rgbToHex(el.style.backgroundColor);
+                el.classList.toggle('active', presetColor === color.toUpperCase());
+            });
+            createRoom();
+        }
+
+        function setWallColor(color) {
+            document.getElementById('wall-color').value = color;
+            wallColor = color;
+            document.querySelectorAll('#wall-presets .color-preset').forEach(el => {
+                const presetColor = rgbToHex(el.style.backgroundColor);
+                el.classList.toggle('active', presetColor === color.toUpperCase());
+            });
+            createRoom();
+        }
+
+        function updateFurniturePosition() {
+            // Lire les valeurs des sliders
+            const xSlider = document.getElementById('furniture-x');
+            const zSlider = document.getElementById('furniture-z');
+
+            furnitureOffsetX = parseFloat(xSlider.value);
+            furnitureOffsetZ = parseFloat(zSlider.value);
+
+            // Calculer les limites basées sur les dimensions du meuble
+            const furnitureBounds = getFurnitureBounds();
+
+            // Limites X : mur gauche à -ROOM_WIDTH/2, pas de mur à droite
+            const minX = (-ROOM_WIDTH / 2 / CONFIG.SCALE) + furnitureBounds.halfWidth;
+            const maxX = (ROOM_WIDTH / 2 / CONFIG.SCALE) - furnitureBounds.halfWidth;
+
+            // Limites Z : mur du fond à -2 (en unités 3D), vers l'avant libre
+            const backWallZ = -2 / CONFIG.SCALE; // Position du mur en cm
+            const minZ = backWallZ + furnitureBounds.halfDepth;
+            const maxZ = (ROOM_DEPTH / 2 - 2) / CONFIG.SCALE - furnitureBounds.halfDepth;
+
+            // Appliquer les contraintes
+            furnitureOffsetX = Math.max(minX, Math.min(maxX, furnitureOffsetX));
+            furnitureOffsetZ = Math.max(minZ, Math.min(maxZ, furnitureOffsetZ));
+
+            // Mettre à jour les sliders et affichages
+            xSlider.value = furnitureOffsetX;
+            zSlider.value = furnitureOffsetZ;
+            document.getElementById('furniture-x-value').textContent = Math.round(furnitureOffsetX) + ' cm';
+            document.getElementById('furniture-z-value').textContent = Math.round(furnitureOffsetZ) + ' cm';
+
+            // Appliquer la position
+            furnitureGroup.position.x = furnitureOffsetX * CONFIG.SCALE;
+            furnitureGroup.position.z = furnitureOffsetZ * CONFIG.SCALE;
+        }
+
+        function getFurnitureBounds() {
+            // Calculer les dimensions du meuble basé sur la config
+            let width = baseConfig.rectA.width;
+            let depth = baseConfig.rectA.depth;
+
+            if (baseConfig.rectB.enabled) {
+                width = baseConfig.rectA.width + baseConfig.rectB.width;
+                depth = Math.max(baseConfig.rectA.depth, baseConfig.rectB.depth);
+            }
+
+            return {
+                halfWidth: width / 2,
+                halfDepth: depth / 2
+            };
+        }
+
+        function updateCameraHeight(value) {
+            cameraHeight = parseFloat(value) / 10;
+            setIsometricView();
+        }
+
+        function addGroundElements() {
+            // Quadrillage supprimé - le sol de la pièce suffit
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const aspect = width / height;
+            const viewSize = 4;
+
+            // Mettre à jour les deux caméras
+            orthoCamera.left = -viewSize * aspect;
+            orthoCamera.right = viewSize * aspect;
+            orthoCamera.top = viewSize;
+            orthoCamera.bottom = -viewSize;
+            orthoCamera.updateProjectionMatrix();
+
+            perspCamera.aspect = aspect;
+            perspCamera.updateProjectionMatrix();
+
+            renderer.setSize(width, height);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // ==========================================
+        // GESTION DES COULEURS
+        // ==========================================
+
+        function updateTubeColor(color) {
+            tubeColor = color;
+            document.querySelectorAll('.color-preset').forEach(el => {
+                el.classList.toggle('active', el.style.background === color || 
+                    rgbToHex(el.style.background) === color.toUpperCase());
+            });
+            updateFurniture();
+        }
+
+        function setTubeColor(color) {
+            document.getElementById('tube-color').value = color;
+            updateTubeColor(color);
+        }
+
+        function rgbToHex(rgb) {
+            if (rgb.startsWith('#')) return rgb.toUpperCase();
+            const match = rgb.match(/\d+/g);
+            if (!match) return rgb;
+            return '#' + match.slice(0,3).map(x => parseInt(x).toString(16).padStart(2,'0')).join('').toUpperCase();
+        }
+
+        // ==========================================
+        // TUBES COMPENSATOIRES
+        // ==========================================
+
+        // Trouve le dernier étage avant stageIndex qui possède le rectangle rectType ('a' ou 'b')
+        function getLastStageWithRect(stageIndex, rectType) {
+            for (let i = stageIndex - 1; i >= 0; i--) {
+                const stage = stages[i];
+                if (rectType === 'a' && (stage.type === 'a' || stage.type === 'ab')) {
+                    return i;
+                }
+                if (rectType === 'b' && (stage.type === 'b' || stage.type === 'ab')) {
+                    return i;
+                }
+            }
+            return -1; // Pas trouvé
+        }
+
+        // Calcule la hauteur cumulée des tubes entre deux étages
+        function calculateCompensatoryHeight(fromStageIndex, toStageIndex) {
+            let totalHeight = 0;
+            for (let i = fromStageIndex; i < toStageIndex; i++) {
+                totalHeight += stages[i].tubeLength + CONFIG.WOOD_THICKNESS;
+            }
+            // On retire l'épaisseur du plateau supérieur car les tubes s'arrêtent en dessous
+            return totalHeight - CONFIG.WOOD_THICKNESS;
+        }
+
+        // Vérifie si une configuration de type est valide
+        // Règle : on ne peut sauter qu'un seul étage maximum
+        function isTypeValid(stageIndex, type) {
+            if (stageIndex === 0) return true; // Base toujours valide
+
+            const hasA = type === 'a' || type === 'ab';
+            const hasB = type === 'b' || type === 'ab';
+
+            if (hasA) {
+                const lastA = getLastStageWithRect(stageIndex, 'a');
+                if (lastA === -1) return false; // Pas de A en dessous
+                // On ne peut sauter qu'un seul étage (lastA doit être stageIndex-1 ou stageIndex-2)
+                if (stageIndex - lastA > 2) return false;
+            }
+
+            if (hasB && baseConfig.rectB.enabled) {
+                const lastB = getLastStageWithRect(stageIndex, 'b');
+                if (lastB === -1) return false; // Pas de B en dessous
+                // On ne peut sauter qu'un seul étage
+                if (stageIndex - lastB > 2) return false;
+            }
+
+            return true;
+        }
+
+        // Retourne les hauteurs de tubes pour chaque rectangle d'un étage
+        function getTubeHeightsForStage(stageIndex) {
+            const result = { a: null, b: null };
+            const stage = stages[stageIndex];
+            if (!stage) return result;
+
+            const hasA = stage.type === 'a' || stage.type === 'ab';
+            const hasB = stage.type === 'b' || stage.type === 'ab';
+
+            if (hasA) {
+                const lastA = getLastStageWithRect(stageIndex, 'a');
+                if (lastA >= 0) {
+                    result.a = calculateCompensatoryHeight(lastA, stageIndex);
+                }
+            }
+
+            if (hasB && baseConfig.rectB.enabled) {
+                const lastB = getLastStageWithRect(stageIndex, 'b');
+                if (lastB >= 0) {
+                    result.b = calculateCompensatoryHeight(lastB, stageIndex);
+                }
+            }
+
+            return result;
+        }
+
+        // ==========================================
+        // GESTION DES ÉTAGES
+        // ==========================================
+
+        function addStage() {
+            const id = ++stageIdCounter;
+            const isFirst = stages.length === 0;
+            const baseHeight = calculateNextHeight();
+            
+            // Déterminer le type par défaut
+            let defaultType = 'ab';
+            if (!isFirst) {
+                const prevStage = stages[stages.length - 1];
+                defaultType = prevStage.type; // Hérite du précédent
+            }
+
+            // Si c'est le premier ou si B n'est pas activé, forcer le type
+            if (isFirst || !baseConfig.rectB.enabled) {
+                defaultType = baseConfig.rectB.enabled ? 'ab' : 'a';
+            }
+            
+            const stage = {
+                id: id,
+                isBase: isFirst,
+                type: defaultType, // 'ab', 'a', ou 'b'
+                tubeLength: 13,
+                height: baseHeight
+            };
+            
+            stages.push(stage);
+            renderStageList();
+            updateFurniture();
+        }
+
+        function calculateNextHeight() {
+            if (stages.length === 0) return 0;
+            const lastStage = stages[stages.length - 1];
+            return lastStage.height + lastStage.tubeLength + CONFIG.WOOD_THICKNESS;
+        }
+
+        function removeStage(id) {
+            const index = stages.findIndex(s => s.id === id);
+            if (index === 0) return; // Ne pas supprimer le premier
+            
+            stages = stages.filter(s => s.id !== id);
+            recalculateHeights();
+            renderStageList();
+            updateFurniture();
+        }
+
+        function recalculateHeights() {
+            let currentHeight = 0;
+            for (let i = 0; i < stages.length; i++) {
+                stages[i].height = currentHeight;
+                if (i < stages.length - 1) {
+                    currentHeight += stages[i].tubeLength + CONFIG.WOOD_THICKNESS;
+                }
+            }
+        }
+
+        function updateBaseConfig(rect, field, value) {
+            const numValue = Math.max(10, Math.min(200, parseFloat(value) || 0));
+            baseConfig[rect][field] = numValue;
+            renderStageList();
+            updateFurniture();
+        }
+
+        function toggleRectB() {
+            baseConfig.rectB.enabled = !baseConfig.rectB.enabled;
+            
+            if (baseConfig.rectB.enabled) {
+                // Quand on active B, mettre le premier étage (base) en 'ab'
+                if (stages.length > 0 && stages[0].isBase) {
+                    stages[0].type = 'ab';
+                }
+            } else {
+                // Quand on désactive B, tous les étages avec 'b' ou 'ab' passent en 'a'
+                stages.forEach(s => {
+                    if (s.type === 'b' || s.type === 'ab') {
+                        s.type = 'a';
+                    }
+                });
+            }
+            
+            renderStageList();
+            updateFurniture();
+        }
+
+        function setStageType(id, type) {
+            const stage = stages.find(s => s.id === id);
+            if (stage && !stage.isBase) {
+                stage.type = type;
+                renderStageList();
+                updateFurniture();
+            }
+        }
+
+        function updateStage(id, field, value) {
+            const stage = stages.find(s => s.id === id);
+            if (!stage) return;
+
+            stage[field] = parseFloat(value) || 0;
+
+            if (field === 'tubeLength') {
+                recalculateHeights();
+                renderStageList();
+            }
+
+            updateFurniture();
+        }
+
+        function getStageGeometry(stage) {
+            // Retourne les dimensions effectives selon le type
+            const result = { hasA: false, hasB: false, width: 0, depth: 0 };
+            
+            if (stage.type === 'a' || stage.type === 'ab') {
+                result.hasA = true;
+            }
+            if ((stage.type === 'b' || stage.type === 'ab') && baseConfig.rectB.enabled) {
+                result.hasB = true;
+            }
+
+            if (result.hasA && result.hasB) {
+                result.width = baseConfig.rectA.width + baseConfig.rectB.width;
+                result.depth = Math.max(baseConfig.rectA.depth, baseConfig.rectB.depth);
+            } else if (result.hasA) {
+                result.width = baseConfig.rectA.width;
+                result.depth = baseConfig.rectA.depth;
+            } else if (result.hasB) {
+                result.width = baseConfig.rectB.width;
+                result.depth = baseConfig.rectB.depth;
+            }
+
+            return result;
+        }
+
+        function renderStageList() {
+            const container = document.getElementById('stage-list');
+            container.innerHTML = '';
+
+            stages.forEach((stage, index) => {
+                const geo = getStageGeometry(stage);
+                const typeLabel = stage.type === 'ab' ? 'A+B' : stage.type.toUpperCase();
+                const shapeIcon = stage.type === 'ab' ? '⌐' : '▭';
+
+                const card = document.createElement('div');
+                card.className = `stage-card ${stage.isBase ? 'base-stage' : ''}`;
+                
+                if (stage.isBase) {
+                    // Premier étage : configuration de base
+                    card.innerHTML = `
+                        <div class="stage-header">
+                            <span class="stage-name">
+                                Étage 1 — Base
+                                <span class="stage-badge badge-height">H: ${stage.height.toFixed(0)} cm</span>
+                            </span>
+                        </div>
+                        
+                        <div class="stage-config">
+                            <!-- Rectangle A -->
+                            <div class="rect-section">
+                                <div class="rect-section-header">
+                                    <span class="rect-label"><span class="dot"></span>Rectangle A (toujours présent)</span>
+                                </div>
+                                <div class="config-row">
+                                    <div class="input-group">
+                                        <label>Largeur (cm)</label>
+                                        <input type="number" value="${baseConfig.rectA.width}" min="10" max="200" 
+                                            onchange="updateBaseConfig('rectA', 'width', this.value)">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Profondeur (cm)</label>
+                                        <input type="number" value="${baseConfig.rectA.depth}" min="10" max="200" 
+                                            onchange="updateBaseConfig('rectA', 'depth', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Toggle Rectangle B -->
+                            <label class="rect-toggle ${baseConfig.rectB.enabled ? 'active' : ''}">
+                                <input type="checkbox" ${baseConfig.rectB.enabled ? 'checked' : ''} 
+                                    onchange="toggleRectB()">
+                                <span>Activer Rectangle B (forme en L)</span>
+                            </label>
+
+                            <!-- Rectangle B -->
+                            ${baseConfig.rectB.enabled ? `
+                            <div class="rect-section rect-b">
+                                <div class="rect-section-header">
+                                    <span class="rect-label"><span class="dot"></span>Rectangle B</span>
+                                </div>
+                                <div class="config-row">
+                                    <div class="input-group">
+                                        <label>Largeur (cm)</label>
+                                        <input type="number" value="${baseConfig.rectB.width}" min="10" max="200" 
+                                            onchange="updateBaseConfig('rectB', 'width', this.value)">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Profondeur (cm)</label>
+                                        <input type="number" value="${baseConfig.rectB.depth}" min="10" max="200" 
+                                            onchange="updateBaseConfig('rectB', 'depth', this.value)">
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            <div class="dims-preview">
+                                <span>${shapeIcon} ${geo.width} × ${geo.depth} cm</span>
+                                <span class="stage-badge badge-type type-${stage.type}">${typeLabel}</span>
+                            </div>
+
+                            ${stages.length > 1 ? `
+                            <div class="tube-config">
+                                <div class="input-group">
+                                    <label>Tubes vers étage 2</label>
+                                    <select onchange="updateStage(${stage.id}, 'tubeLength', this.value)">
+                                        <option value="13" ${stage.tubeLength === 13 ? 'selected' : ''}>13 cm</option>
+                                        <option value="24" ${stage.tubeLength === 24 ? 'selected' : ''}>24 cm</option>
+                                        <option value="35" ${stage.tubeLength === 35 ? 'selected' : ''}>35 cm</option>
+                                    </select>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    // Étages suivants : sélection du type avec validation hauteur
+                    const canSelectAB = baseConfig.rectB.enabled && isTypeValid(index, 'ab');
+                    const canSelectA = isTypeValid(index, 'a');
+                    const canSelectB = baseConfig.rectB.enabled && isTypeValid(index, 'b');
+
+                    // Calculer les hauteurs de tubes pour cet étage
+                    const tubeHeights = getTubeHeightsForStage(index);
+                    const tubeInfoA = tubeHeights.a ? `${tubeHeights.a}cm` : '';
+                    const tubeInfoB = tubeHeights.b ? `${tubeHeights.b}cm` : '';
+                    const hasCompensatory = (tubeHeights.a && tubeHeights.a > 13) || (tubeHeights.b && tubeHeights.b > 13);
+
+                    card.innerHTML = `
+                        <div class="stage-header">
+                            <span class="stage-name">
+                                Étage ${index + 1}
+                                <span class="stage-badge badge-height">H: ${stage.height.toFixed(0)} cm</span>
+                                <span class="stage-badge badge-type type-${stage.type}">${typeLabel}</span>
+                            </span>
+                            <button class="stage-delete" onclick="removeStage(${stage.id})" title="Supprimer">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="stage-config">
+                            <!-- Sélecteur de type -->
+                            <div class="stage-type-selector">
+                                <div class="stage-type-btn type-ab ${stage.type === 'ab' ? 'active' : ''} ${!canSelectAB ? 'disabled' : ''}"
+                                     onclick="${canSelectAB ? `setStageType(${stage.id}, 'ab')` : ''}"
+                                     title="${!canSelectAB ? 'Max 1 étage sauté' : ''}">
+                                    <div class="type-label">A+B</div>
+                                    <div class="type-desc">Complet (L)</div>
+                                </div>
+                                <div class="stage-type-btn type-a ${stage.type === 'a' ? 'active' : ''} ${!canSelectA ? 'disabled' : ''}"
+                                     onclick="${canSelectA ? `setStageType(${stage.id}, 'a')` : ''}"
+                                     title="${!canSelectA ? 'Max 1 étage sauté' : ''}">
+                                    <div class="type-label">A</div>
+                                    <div class="type-desc">${baseConfig.rectA.width}×${baseConfig.rectA.depth}</div>
+                                </div>
+                                <div class="stage-type-btn type-b ${stage.type === 'b' ? 'active' : ''} ${!canSelectB ? 'disabled' : ''}"
+                                     onclick="${canSelectB ? `setStageType(${stage.id}, 'b')` : ''}"
+                                     title="${!canSelectB ? 'Max 1 étage sauté' : ''}">
+                                    <div class="type-label">B</div>
+                                    <div class="type-desc">${baseConfig.rectB.width}×${baseConfig.rectB.depth}</div>
+                                </div>
+                            </div>
+
+                            <div class="dims-preview">
+                                <span>${shapeIcon} ${geo.width} × ${geo.depth} cm</span>
+                                ${hasCompensatory ? `<span style="color: var(--accent); font-size: 0.65rem;">Tubes: ${tubeInfoA}${tubeInfoA && tubeInfoB ? ' / ' : ''}${tubeInfoB}</span>` : ''}
+                            </div>
+
+                            ${index < stages.length - 1 ? `
+                            <div class="tube-config">
+                                <div class="input-group">
+                                    <label>Tubes vers étage ${index + 2}</label>
+                                    <select onchange="updateStage(${stage.id}, 'tubeLength', this.value)">
+                                        <option value="13" ${stage.tubeLength === 13 ? 'selected' : ''}>13 cm</option>
+                                        <option value="24" ${stage.tubeLength === 24 ? 'selected' : ''}>24 cm</option>
+                                        <option value="35" ${stage.tubeLength === 35 ? 'selected' : ''}>35 cm</option>
+                                    </select>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+                
+                container.appendChild(card);
+            });
+        }
+
+        // ==========================================
+        // CONSTRUCTION 3D
+        // ==========================================
+        
+        function updateFurniture() {
+            while (furnitureGroup.children.length > 0) {
+                furnitureGroup.remove(furnitureGroup.children[0]);
+            }
+
+            if (stages.length === 0) {
+                updateInfoPanel();
+                return;
+            }
+
+            // Mettre à jour le matériau acier
+            steelMaterial = new THREE.MeshStandardMaterial({
+                color: tubeColor,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+
+            const tubesCounts = {}; // Compteur par hauteur réelle
+            let plateauxCount = 0;
+
+            // Créer tous les plateaux
+            stages.forEach((stage, index) => {
+                const geo = getStageGeometry(stage);
+                const plateau = createPlateau(stage, geo);
+                if (plateau) {
+                    furnitureGroup.add(plateau);
+                    plateauxCount++;
+                }
+            });
+
+            // Créer les tubes pour chaque étage (sauf la base)
+            for (let i = 1; i < stages.length; i++) {
+                const stage = stages[i];
+                const hasA = stage.type === 'a' || stage.type === 'ab';
+                const hasB = (stage.type === 'b' || stage.type === 'ab') && baseConfig.rectB.enabled;
+
+                // Tubes pour rectangle A
+                if (hasA) {
+                    const lastAIndex = getLastStageWithRect(i, 'a');
+                    if (lastAIndex >= 0) {
+                        const tubeHeight = calculateCompensatoryHeight(lastAIndex, i);
+                        const baseY = stages[lastAIndex].height + CONFIG.WOOD_THICKNESS;
+                        const tubes = createTubesForRect('a', tubeHeight, baseY);
+                        tubes.forEach(tube => {
+                            furnitureGroup.add(tube);
+                            tubesCounts[tubeHeight] = (tubesCounts[tubeHeight] || 0) + 1;
+                        });
+                    }
+                }
+
+                // Tubes pour rectangle B
+                if (hasB) {
+                    const lastBIndex = getLastStageWithRect(i, 'b');
+                    if (lastBIndex >= 0) {
+                        const tubeHeight = calculateCompensatoryHeight(lastBIndex, i);
+                        const baseY = stages[lastBIndex].height + CONFIG.WOOD_THICKNESS;
+                        const tubes = createTubesForRect('b', tubeHeight, baseY);
+                        tubes.forEach(tube => {
+                            furnitureGroup.add(tube);
+                            tubesCounts[tubeHeight] = (tubesCounts[tubeHeight] || 0) + 1;
+                        });
+                    }
+                }
+            }
+
+            centerFurniture();
+            updateInfoPanel();
+            updateTubesSummary(tubesCounts, plateauxCount);
+        }
+
+        // Crée les tubes pour un rectangle donné
+        function createTubesForRect(rectType, tubeHeight, baseY) {
+            const tubes = [];
+            const scale = CONFIG.SCALE;
+            const margin = CONFIG.TUBE_MARGIN + CONFIG.TUBE_DIAMETER / 2;
+            const maxSpan = CONFIG.MAX_SPAN;
+            const radius = (CONFIG.TUBE_DIAMETER / 2) * scale;
+            const height = tubeHeight * scale;
+
+            let xMin, xMax, zMin, zMax;
+            if (rectType === 'a') {
+                xMin = -baseConfig.rectA.width;
+                xMax = 0;
+                zMin = 0;
+                zMax = baseConfig.rectA.depth;
+            } else {
+                xMin = 0;
+                xMax = baseConfig.rectB.width;
+                zMin = 0;
+                zMax = baseConfig.rectB.depth;
+            }
+
+            const positions = calculateRectTubePositions(xMin, xMax, zMin, zMax, margin, maxSpan);
+
+            positions.forEach(pos => {
+                const geo = new THREE.CylinderGeometry(radius, radius, height, 16);
+                const mesh = new THREE.Mesh(geo, steelMaterial);
+                mesh.position.set(
+                    pos.x * scale,
+                    baseY * scale + height / 2,
+                    pos.z * scale
+                );
+                mesh.castShadow = true;
+                tubes.push(mesh);
+            });
+
+            return tubes;
+        }
+
+        function createPlateau(stage, geo) {
+            const scale = CONFIG.SCALE;
+            const thickness = CONFIG.WOOD_THICKNESS * scale;
+            const y = stage.height * scale + thickness / 2;
+
+            const woodMaterial = new THREE.MeshStandardMaterial({
+                color: 0xD4A574,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+
+            if (stage.type === 'ab' && baseConfig.rectB.enabled) {
+                // Forme en L : créer un groupe avec les deux rectangles
+                // (visuellement une seule pièce grâce au même matériau)
+                const group = new THREE.Group();
+                
+                const wA = baseConfig.rectA.width;
+                const dA = baseConfig.rectA.depth;
+                const wB = baseConfig.rectB.width;
+                const dB = baseConfig.rectB.depth;
+
+                // Rectangle A : à gauche (X négatif), aligné au fond (Z=0)
+                const geoA = new THREE.BoxGeometry(wA * scale, thickness, dA * scale);
+                const meshA = new THREE.Mesh(geoA, woodMaterial);
+                meshA.position.set(
+                    -wA / 2 * scale,      // Centré sur sa largeur, côté gauche
+                    0,
+                    dA / 2 * scale        // Fond à Z=0, s'étend vers Z+
+                );
+                meshA.castShadow = true;
+                meshA.receiveShadow = true;
+                group.add(meshA);
+
+                // Rectangle B : à droite (X positif), aligné au fond (Z=0)
+                const geoB = new THREE.BoxGeometry(wB * scale, thickness, dB * scale);
+                const meshB = new THREE.Mesh(geoB, woodMaterial);
+                meshB.position.set(
+                    wB / 2 * scale,       // Centré sur sa largeur, côté droit
+                    0,
+                    dB / 2 * scale        // Fond à Z=0, s'étend vers Z+
+                );
+                meshB.castShadow = true;
+                meshB.receiveShadow = true;
+                group.add(meshB);
+
+                // Positionner le groupe à la bonne hauteur
+                group.position.y = y;
+                
+                return group;
+            } else if (stage.type === 'a' || (stage.type === 'ab' && !baseConfig.rectB.enabled)) {
+                // Rectangle A seul
+                const geoA = new THREE.BoxGeometry(
+                    baseConfig.rectA.width * scale,
+                    thickness,
+                    baseConfig.rectA.depth * scale
+                );
+                const mesh = new THREE.Mesh(geoA, woodMaterial);
+                mesh.position.set(
+                    -baseConfig.rectA.width / 2 * scale,
+                    y,
+                    baseConfig.rectA.depth / 2 * scale
+                );
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                return mesh;
+            } else if (stage.type === 'b' && baseConfig.rectB.enabled) {
+                // Rectangle B seul
+                const geoB = new THREE.BoxGeometry(
+                    baseConfig.rectB.width * scale,
+                    thickness,
+                    baseConfig.rectB.depth * scale
+                );
+                const mesh = new THREE.Mesh(geoB, woodMaterial);
+                mesh.position.set(
+                    baseConfig.rectB.width / 2 * scale,
+                    y,
+                    baseConfig.rectB.depth / 2 * scale
+                );
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                return mesh;
+            }
+
+            return null;
+        }
+
+        function createTubesBetweenStages(currentStage, currentGeo, nextStage, nextGeo, tubeHeight, baseY) {
+            const tubes = [];
+            const scale = CONFIG.SCALE;
+            const margin = CONFIG.TUBE_MARGIN + CONFIG.TUBE_DIAMETER / 2;
+            const maxSpan = CONFIG.MAX_SPAN;
+            const radius = (CONFIG.TUBE_DIAMETER / 2) * scale;
+            const height = tubeHeight * scale;
+
+            // Déterminer la zone commune entre les deux étages
+            const commonZones = getCommonZones(currentStage.type, nextStage.type);
+            
+            const allPositions = [];
+
+            commonZones.forEach(zone => {
+                let xMin, xMax, zMin, zMax;
+                
+                if (zone === 'a') {
+                    xMin = -baseConfig.rectA.width;
+                    xMax = 0;
+                    zMin = 0;
+                    zMax = baseConfig.rectA.depth;
+                } else if (zone === 'b') {
+                    xMin = 0;
+                    xMax = baseConfig.rectB.width;
+                    zMin = 0;
+                    zMax = baseConfig.rectB.depth;
+                }
+
+                const positions = calculateRectTubePositions(xMin, xMax, zMin, zMax, margin, maxSpan);
+                positions.forEach(p => {
+                    // Éviter les doublons à la jonction
+                    const isDuplicate = allPositions.some(existing => 
+                        Math.abs(existing.x - p.x) < 0.5 && Math.abs(existing.z - p.z) < 0.5
+                    );
+                    if (!isDuplicate) {
+                        allPositions.push(p);
+                    }
+                });
+            });
+
+            allPositions.forEach(pos => {
+                const geo = new THREE.CylinderGeometry(radius, radius, height, 16);
+                const mesh = new THREE.Mesh(geo, steelMaterial);
+                mesh.position.set(
+                    pos.x * scale,
+                    baseY * scale + height / 2,
+                    pos.z * scale
+                );
+                mesh.castShadow = true;
+                tubes.push(mesh);
+            });
+
+            return tubes;
+        }
+
+        function getCommonZones(currentType, nextType) {
+            // Retourne les zones où placer des tubes (intersection des deux étages)
+            const current = currentType === 'ab' ? ['a', 'b'] : [currentType];
+            const next = nextType === 'ab' ? ['a', 'b'] : [nextType];
+            
+            return current.filter(z => next.includes(z));
+        }
+
+        function calculateRectTubePositions(xMin, xMax, zMin, zMax, margin, maxSpan) {
+            const positions = [];
+            
+            const x1 = xMin + margin;
+            const x2 = xMax - margin;
+            const z1 = zMin + margin;
+            const z2 = zMax - margin;
+
+            const width = x2 - x1;
+            const depth = z2 - z1;
+
+            const numX = Math.max(2, Math.ceil(width / maxSpan) + 1);
+            const numZ = Math.max(2, Math.ceil(depth / maxSpan) + 1);
+
+            const stepX = width / (numX - 1);
+            const stepZ = depth / (numZ - 1);
+
+            for (let i = 0; i < numX; i++) {
+                for (let j = 0; j < numZ; j++) {
+                    positions.push({
+                        x: x1 + i * stepX,
+                        z: z1 + j * stepZ
+                    });
+                }
+            }
+
+            return positions;
+        }
+
+        function centerFurniture() {
+            if (furnitureGroup.children.length === 0) return;
+
+            const box = new THREE.Box3().setFromObject(furnitureGroup);
+            const center = box.getCenter(new THREE.Vector3());
+
+            // Centrer les enfants du groupe (positionnement interne)
+            furnitureGroup.children.forEach(child => {
+                child.position.x -= center.x;
+                child.position.z -= center.z;
+            });
+
+            // Conserver la position actuelle du meuble dans la pièce
+            // (ne pas réinitialiser les offsets)
+            // Juste réappliquer les contraintes avec les nouvelles dimensions
+            updateFurniturePosition();
+        }
+
+        // ==========================================
+        // MISE À JOUR UI
+        // ==========================================
+        
+        function updateInfoPanel() {
+            if (stages.length === 0) {
+                document.getElementById('info-width').textContent = '0 cm';
+                document.getElementById('info-depth').textContent = '0 cm';
+                document.getElementById('info-height').textContent = '0 cm';
+                return;
+            }
+
+            let maxWidth = 0;
+            let maxDepth = 0;
+
+            stages.forEach(stage => {
+                const geo = getStageGeometry(stage);
+                maxWidth = Math.max(maxWidth, geo.width);
+                maxDepth = Math.max(maxDepth, geo.depth);
+            });
+
+            const lastStage = stages[stages.length - 1];
+            const totalHeight = lastStage.height + CONFIG.WOOD_THICKNESS;
+
+            document.getElementById('info-width').textContent = `${maxWidth} cm`;
+            document.getElementById('info-depth').textContent = `${maxDepth} cm`;
+            document.getElementById('info-height').textContent = `${totalHeight.toFixed(1)} cm`;
+        }
+
+        function updateTubesSummary(tubesCounts, plateauxCount) {
+            // Calculer le total
+            let total = 0;
+            const heights = Object.keys(tubesCounts).map(Number).sort((a, b) => a - b);
+
+            heights.forEach(h => {
+                total += tubesCounts[h];
+            });
+
+            // Afficher les tubes standard
+            document.getElementById('tubes-13').textContent = tubesCounts[13] || 0;
+            document.getElementById('tubes-24').textContent = tubesCounts[24] || 0;
+            document.getElementById('tubes-35').textContent = tubesCounts[35] || 0;
+
+            // Ajouter les tubes compensatoires (hauteurs non standard)
+            const customHeights = heights.filter(h => h !== 13 && h !== 24 && h !== 35);
+            const customContainer = document.getElementById('tubes-custom');
+
+            if (customContainer) {
+                if (customHeights.length > 0) {
+                    let customHtml = '';
+                    customHeights.forEach(h => {
+                        customHtml += `<div class="summary-row"><span class="summary-label">Tubes ${h} cm (compensatoire)</span><span class="summary-value">${tubesCounts[h]}</span></div>`;
+                    });
+                    customContainer.innerHTML = customHtml;
+                    customContainer.style.display = 'block';
+                } else {
+                    customContainer.innerHTML = '';
+                    customContainer.style.display = 'none';
+                }
+            }
+
+            document.getElementById('tubes-total').textContent = total;
+            document.getElementById('plateaux-count').textContent = plateauxCount;
+        }
+
+        // ==========================================
+        // CONTRÔLES DE VUE
+        // ==========================================
+        
+        function rotateView(direction) {
+            if (!isTopView) {
+                viewAngle += direction * Math.PI / 6;
+                setIsometricView();
+            }
+        }
+
+        function resetView() {
+            viewAngle = Math.PI / 4;
+            zoomLevel = 1;
+            isTopView = false;
+            usePerspective = false;
+            cameraHeight = 0.7;
+
+            // Réinitialiser la caméra active
+            camera = orthoCamera;
+
+            // Réinitialiser les boutons UI
+            document.getElementById('topview-btn').classList.remove('active');
+            document.getElementById('zoom-btn').classList.remove('active');
+            document.getElementById('perspective-btn').classList.remove('active');
+            document.getElementById('camera-height').value = 7;
+
+            setIsometricView();
+        }
+
+        function toggleZoom() {
+            zoomLevel = zoomLevel === 1 ? 2.5 : 1;
+            document.getElementById('zoom-btn').classList.toggle('active', zoomLevel > 1);
+            setIsometricView();
+        }
+
+        function toggleTopView() {
+            isTopView = !isTopView;
+            document.getElementById('topview-btn').classList.toggle('active', isTopView);
+            setIsometricView();
+        }
+
+        // ==========================================
+        // ACTIONS
+        // ==========================================
+        
+        function resetConfig() {
+            if (confirm('Réinitialiser la configuration ?')) {
+                baseConfig = {
+                    rectA: { width: 40, depth: 50 },
+                    rectB: { enabled: false, width: 60, depth: 30 }
+                };
+                stages = [];
+                stageIdCounter = 0;
+                addStage();
+            }
+        }
+
+        function exportConfig() {
+            const config = {
+                version: '3.0',
+                baseConfig: baseConfig,
+                tubeColor: tubeColor,
+                stages: stages.map((s, i) => ({
+                    etage: i + 1,
+                    type: s.type,
+                    hauteur_base_cm: s.height,
+                    dimensions: getStageGeometry(s),
+                    tubes_vers_suivant: i < stages.length - 1 ? {
+                        longueur_cm: s.tubeLength
+                    } : null
+                })),
+                generated: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `config-meuble-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ==========================================
+        // CHARGER / SAUVEGARDER
+        // ==========================================
+
+        function loadConfigFile() {
+            document.getElementById('load-json-input').click();
+        }
+
+        function handleFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // Valider le format
+                    if (!data.baseConfig || !Array.isArray(data.stages)) {
+                        throw new Error('Format invalide');
+                    }
+
+                    // Charger la configuration
+                    baseConfig = data.baseConfig;
+                    tubeColor = data.tubeColor || '#6B7280';
+                    document.getElementById('tube-color').value = tubeColor;
+
+                    // Recréer les étages
+                    stages = [];
+                    stageIdCounter = 0;
+
+                    data.stages.forEach((s, index) => {
+                        const stage = {
+                            id: ++stageIdCounter,
+                            isBase: index === 0,
+                            type: s.type || 'a',
+                            tubeLength: s.tubes_vers_suivant?.longueur_cm || 13,
+                            height: s.hauteur_base_cm || 0
+                        };
+                        stages.push(stage);
+                    });
+
+                    renderStageList();
+                    updateFurniture();
+                    saveToLocalStorage();
+
+                    alert('Configuration chargée !');
+                } catch (error) {
+                    alert('Erreur: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset pour permettre de recharger le même fichier
+        }
+
+        function exportImage() {
+            // Capturer le canvas WebGL
+            const dataURL = renderer.domElement.toDataURL('image/png');
+
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = `meuble-3d-${Date.now()}.png`;
+            a.click();
+        }
+
+        function saveToLocalStorage() {
+            const config = {
+                version: '3.0',
+                baseConfig: baseConfig,
+                tubeColor: tubeColor,
+                stages: stages.map((s, i) => ({
+                    etage: i + 1,
+                    type: s.type,
+                    hauteur_base_cm: s.height,
+                    dimensions: getStageGeometry(s),
+                    tubes_vers_suivant: i < stages.length - 1 ? {
+                        longueur_cm: s.tubeLength
+                    } : null
+                }))
+            };
+            localStorage.setItem('meuble-config', JSON.stringify(config));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('meuble-config');
+            if (!saved) return false;
+
+            try {
+                const data = JSON.parse(saved);
+                if (!data.baseConfig || !Array.isArray(data.stages)) return false;
+
+                baseConfig = data.baseConfig;
+                tubeColor = data.tubeColor || '#6B7280';
+                document.getElementById('tube-color').value = tubeColor;
+
+                stages = [];
+                stageIdCounter = 0;
+
+                data.stages.forEach((s, index) => {
+                    const stage = {
+                        id: ++stageIdCounter,
+                        isBase: index === 0,
+                        type: s.type || 'a',
+                        tubeLength: s.tubes_vers_suivant?.longueur_cm || 13,
+                        height: s.hauteur_base_cm || 0
+                    };
+                    stages.push(stage);
+                });
+
+                return true;
+            } catch (e) {
+                console.error('Erreur chargement localStorage:', e);
+                return false;
+            }
+        }
+
+        // Sauvegarder automatiquement après chaque modification
+        const originalUpdateFurniture = updateFurniture;
+        updateFurniture = function() {
+            originalUpdateFurniture();
+            saveToLocalStorage();
+        };
+
+        // ==========================================
+        // INITIALISATION
+        // ==========================================
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initThreeJS();
+
+            // Charger depuis localStorage ou créer un étage par défaut
+            if (!loadFromLocalStorage()) {
+                addStage();
+            } else {
+                renderStageList();
+                updateFurniture();
+            }
+        });
+    </script>
+</body>
+</html>
